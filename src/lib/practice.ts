@@ -128,7 +128,7 @@ function makeQuestion(item: VocabItem, mode: SessionInput["mode"], pool: VocabIt
   else kind = shuffle(kinds, rng)[0];
 
   let options: string[] | undefined;
-  if (kind !== "type") {
+  if (kind !== "type" && kind !== "speak") {
     const built = buildOptions(item, kind, pool, rng);
     if (built) options = built;
     else kind = "type"; // not enough unambiguous options: ask for typing instead
@@ -148,6 +148,10 @@ export interface AnswerResult {
   level: number;
   status: string;
   replayed: boolean;
+  /** Pronunciation check only: percent of words understood, per-word result, and what was heard. */
+  score?: number;
+  words?: { word: string; ok: boolean }[];
+  heard?: string;
 }
 
 /**
@@ -166,7 +170,7 @@ export async function submitAnswer(uid: string, input: AnswerInput, now = Date.n
   for (let attempt = 0; attempt < 12; attempt++) {
     if (attempt > 0) await new Promise((res) => setTimeout(res, 5 + Math.random() * 25 * attempt)); // jittered backoff under contention
     const item = await getOwned(uid, input.vocabId, r);
-    const { correct, correctAnswer } = judge(item, input.kind, input.answer);
+    const { correct, correctAnswer, speech } = judge(item, input.kind, input.answer);
     const srs = nextReview(item, correct, now);
     const count = item.practiceCount + 1;
     const right = item.correctCount + (correct ? 1 : 0);
@@ -185,6 +189,7 @@ export async function submitAnswer(uid: string, input: AnswerInput, now = Date.n
       level: srs.level,
       status: reviewStatus({ practiceCount: count, level: srs.level, nextReviewAt: srs.nextReviewAt }, now),
       replayed: false,
+      ...(speech ? { score: Math.round(speech.score * 100), words: speech.words, heard: input.answer.slice(0, 300) } : {}),
     };
     const id = item.id;
     const cmds: Cmd[] = [

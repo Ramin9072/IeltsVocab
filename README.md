@@ -1,6 +1,6 @@
 # IELTS Vocab
 
-A mobile-first vocabulary app for IELTS students: save words, phrases and sentences with Persian translations, practice them six ways, and let spaced repetition schedule reviews. Each account is private. The interface works in English (LTR) and Persian (RTL); English vocabulary is always rendered left-to-right.
+A mobile-first vocabulary app for IELTS students: save words, phrases and sentences with Persian translations, practice them seven ways, and let spaced repetition schedule reviews. Each account is private. The interface works in English (LTR) and Persian (RTL); English vocabulary is always rendered left-to-right.
 
 **Stack:** Next.js 16 (App Router) · TypeScript · React 19 · Tailwind CSS 3 · Lucide icons · Zod · Auth.js (`next-auth@beta`, v5) · **Upstash Redis** (the only database) · bcryptjs · Vitest.
 Fonts (Vazirmatn, Bricolage Grotesque) are bundled through `@fontsource-variable/*`, so builds need no network access to Google Fonts. UI components are small hand-written, accessible primitives in `src/components/ui.tsx` (shadcn-style, no generator needed).
@@ -12,10 +12,11 @@ Fonts (Vazirmatn, Bricolage Grotesque) are bundled through `@fontsource-variable
 - Edit, delete (with confirmation), view details; duplicate protection on normalized English text.
 - Library: search (English, Persian, tags), filter by collection / tag / difficulty / review status, sort (newest, oldest, A–Z, most practiced), pagination.
 - Collections: create, rename, delete safely (words are kept and moved to "No collection"), assign from the word form.
-- Practice: English→Persian, Persian→English, definitions, mixed multiple choice, typing, difficult-word review. Choose question count, collection or hand-picked words, new vs. practiced words. One question at a time, instant feedback, correct answer, progress bar, session summary.
+- Practice: English→Persian, Persian→English, definitions, mixed multiple choice, typing, difficult-word review, and a **pronunciation check** (read a sentence aloud and see which words were understood). Choose question count, collection or hand-picked words, new vs. practiced words. One question at a time, instant feedback, correct answer, progress bar, session summary.
 - Exact practice counting, idempotent answers, spaced repetition, dashboard and progress statistics from real stored data.
 - Pronunciation: listen to any English word (word details, library, practice), slowly, or repeated 3 times for shadowing. Uses the device's built-in voices (Web Speech API), so there is no server, key or cost.
 - Voice typing: a microphone button next to the English field, the Persian field and the typing-practice answer. Press it, speak, and the text is typed for you (you still press Save / Check yourself).
+- Pronunciation check: the app shows a sentence (a word's example sentence, or a saved phrase/sentence), you can listen to it (normal, slow, repeated), tap the microphone and read it aloud, review what was heard, then press Check. Each word is marked understood or not, with a percentage and a "words to work on" list you can listen to. 80% or more of the words counts as correct and is tracked like any other answer (attempt count, review schedule, statistics, idempotent). You can also type your own sentence to practice; that is scored in the browser and not counted.
 - CSV import (with per-row validation report, nothing silently dropped) and export.
 - Optional translation / definition / enrichment assistant (Gemini or any OpenAI-compatible API). Suggestions are shown for review and are **never saved automatically**.
 - Light / dark / system theme, English / Persian UI, keyboard-accessible, visible focus, reduced-motion friendly.
@@ -159,7 +160,7 @@ tests/                        Vitest suites (run against a real redis-server)
 
 ## Verification status
 
-Run in the build environment: `eslint` clean · `tsc --noEmit` clean · **108 Vitest tests passing** · `next build` succeeds without any credentials · `npm audit --omit=dev`: 0 vulnerabilities. Tests cover vocabulary create/edit/delete and index cleanup, user isolation, protected pages and API routes, counters (correct/incorrect, retries, concurrent double-submits), review scheduling, session building, statistics, CSV import/export, translation errors/caching/rate limits, and empty states.
+Run in the build environment: `eslint` clean · `tsc --noEmit` clean · **124 Vitest tests passing** · `next build` succeeds without any credentials · `npm audit --omit=dev`: 0 vulnerabilities. Tests cover vocabulary create/edit/delete and index cleanup, user isolation, protected pages and API routes, counters (correct/incorrect, retries, concurrent double-submits), review scheduling, session building, statistics, CSV import/export, translation errors/caching/rate limits, and empty states.
 
 An HTTP smoke test also ran against the production server through the real `@upstash/redis` SDK (talking to a local Redis via `scripts/local-upstash-proxy.mjs`): login, wrong password, redirect of unauthenticated pages, cross-user `404`s, duplicate `409`, idempotent practice answers, Persian `dir="rtl"`, CSV export, cross-site write block, unconfigured translation message.
 
@@ -170,6 +171,7 @@ An HTTP smoke test also ran against the production server through the real `@ups
 - **No browser/visual testing and no automated accessibility audit** was possible here; the UI was built for keyboard use, contrast and RTL but should be checked on real devices.
 - Pronunciation audio comes from the browser's own English voices, so quality varies by device, it needs a browser with speech support (Chrome, Safari, Edge) and it was not tried on real devices here. The IPA text you save is shown but not used to generate sound.
 - Voice typing uses the browser's SpeechRecognition (Chrome, Edge, Safari; hidden in Firefox). In Chrome the audio is processed by Google's speech service, so it needs internet and the browser asks for microphone permission. Accuracy for Persian and for rare English words varies; always check the text before saving. Not tried on real devices here.
+- The pronunciation check measures whether the browser's speech recognizer understood each word (words are aligned in order, case and punctuation ignored, exact word match). It is a helpful guide, not an official pronunciation or accent score, and it can mis-hear numbers ("20" vs "twenty") or names. It needs a browser with SpeechRecognition (Chrome, Edge, Safari) and, in Chrome, an internet connection; the mode is disabled where unsupported. Not tried on real devices here.
 - No password reset, email verification, or account deletion (there is no email service). Registration reveals whether an email is already registered.
 - Search is word-prefix based over English, Persian and tags (not substring or fuzzy, and it does not search definitions or notes). A-Z order uses the first 10 characters. There is no "learning" review-status filter (the badge is shown on each word).
 - CSV import accepts up to 300 rows and 1 MB per upload.

@@ -101,3 +101,13 @@ describe("empty states", () => {
     expect(renderToStaticMarkup(<WordList items={[]} t={makeT("en")} />)).toBe('<ul class="divide-y divide-line"></ul>');
   });
 });
+
+describe("pronunciation practice screen", () => {
+  it("is offered as a practice mode in both languages (the setup form renders on the server)", () => {
+    for (const lang of ["en", "fa"] as const) {
+      const html = wrap(lang, <PracticeApp collections={[]} totalWords={3} />);
+      expect(html).toContain(makeT(lang)("practice.mode.speaking"));
+      expect(html).toContain(makeT(lang)("practice.desc.speaking"));
+    }
+  });
+});

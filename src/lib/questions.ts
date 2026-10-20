@@ -1,8 +1,9 @@
 import { meaningParts, normalizeEnglish, persianKey } from "./text";
+import { scoreSpeech, type SpeechScore } from "./speech-score";
 import type { VocabItem } from "./types";
 import type { PracticeMode } from "./schemas";
 
-export type QuestionKind = "en-fa" | "fa-en" | "def-en" | "type";
+export type QuestionKind = "en-fa" | "fa-en" | "def-en" | "type" | "speak";
 
 export interface Question {
   id: string;
@@ -19,9 +20,16 @@ const MODE_KINDS: Record<PracticeMode, QuestionKind[]> = {
   "multiple-choice": ["en-fa", "fa-en", "def-en"],
   typing: ["type"],
   difficult: ["en-fa", "fa-en", "def-en", "type"],
+  speaking: ["speak"],
 };
 
 export const modeKinds = (mode: PracticeMode) => MODE_KINDS[mode];
+
+/** The sentence to read aloud: the example sentence, or the word itself when it is a phrase or sentence. */
+export function speakTarget(item: VocabItem): string {
+  if (item.example.trim()) return item.example.trim();
+  return item.english.trim().split(/\s+/).length >= 3 ? item.english.trim() : "";
+}
 
 /** Which question kinds a word has enough data for. */
 export function availableKinds(item: VocabItem): QuestionKind[] {
@@ -29,6 +37,7 @@ export function availableKinds(item: VocabItem): QuestionKind[] {
   if (item.persian) kinds.push("en-fa", "fa-en");
   if (item.definition) kinds.push("def-en");
   if (item.persian || item.definition) kinds.push("type");
+  if (speakTarget(item)) kinds.push("speak");
   return kinds;
 }
 
@@ -42,6 +51,8 @@ export function promptFor(item: VocabItem, kind: QuestionKind): string {
       return item.definition;
     case "type":
       return item.persian || item.definition;
+    case "speak":
+      return speakTarget(item);
   }
 }
 
@@ -109,7 +120,16 @@ export function buildOptions(
 
 const stripArticle = (s: string) => s.replace(/^(to|a|an|the)\s+/, "");
 
-export function judge(item: VocabItem, kind: QuestionKind, answer: string): { correct: boolean; correctAnswer: string } {
+export function judge(
+  item: VocabItem,
+  kind: QuestionKind,
+  answer: string,
+): { correct: boolean; correctAnswer: string; speech?: SpeechScore } {
+  if (kind === "speak") {
+    const target = speakTarget(item);
+    const speech = scoreSpeech(target, answer); // `answer` is what the speech recognizer heard
+    return { correct: speech.correct, correctAnswer: target, speech };
+  }
   if (kind === "en-fa") {
     const a = persianKey(answer);
     const correct = a !== "" && (a === persianKey(item.persian) || meaningParts(item.persian).includes(a));

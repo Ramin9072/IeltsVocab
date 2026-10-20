@@ -33,9 +33,14 @@ const noopSubscribe = () => () => {};
  * Uses the browser's SpeechRecognition (Chrome, Edge, Safari). It is hidden where unsupported (e.g. Firefox).
  * In Chrome the audio is processed by the browser vendor's speech service, so it needs an internet connection.
  */
-export function DictateButton({ lang, onText }: { lang: "en" | "fa"; onText: (text: string) => void }) {
+/** null while detecting (server render / hydration), then true or false. */
+export function useRecognitionSupport(): boolean | null {
+  return useSyncExternalStore<boolean | null>(noopSubscribe, () => ctor() !== null, () => null);
+}
+
+export function DictateButton({ lang, onText, variant = "icon" }: { lang: "en" | "fa"; onText: (text: string) => void; variant?: "icon" | "wide" }) {
   const { t } = useI18n();
-  const supported = useSyncExternalStore<boolean | null>(noopSubscribe, () => ctor() !== null, () => null);
+  const supported = useRecognitionSupport();
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState<MsgKey | null>(null);
   const rec = useRef<Recognition | null>(null);
@@ -84,14 +89,21 @@ export function DictateButton({ lang, onText }: { lang: "en" | "fa"; onText: (te
       <button
         type="button"
         onClick={() => (listening ? rec.current?.stop() : start())}
-        aria-label={listening ? t("dictate.stop") : t("dictate.start")}
+        aria-label={listening ? t("dictate.stop") : variant === "wide" ? t("speaking.tap") : t("dictate.start")}
         aria-pressed={listening}
         className={cn(
-          "grid size-11 shrink-0 place-items-center rounded-lg border border-line",
-          listening ? "animate-pulse bg-bad text-white motion-reduce:animate-none" : "bg-surface text-primary hover:bg-sunken",
+          variant === "wide"
+            ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-5 text-base font-medium"
+            : "grid size-11 shrink-0 place-items-center rounded-lg border border-line",
+          listening
+            ? "animate-pulse bg-bad text-white motion-reduce:animate-none"
+            : variant === "wide"
+              ? "bg-primary text-primary-ink hover:brightness-110"
+              : "bg-surface text-primary hover:bg-sunken",
         )}
       >
         {listening ? <Square className="size-4" aria-hidden /> : <Mic className="size-5" aria-hidden />}
+        {variant === "wide" && <span>{listening ? t("dictate.stop") : t("speaking.tap")}</span>}
       </button>
       <p role="status" className={cn("basis-full text-sm", message ? "text-bad" : "text-muted", !listening && !message && "sr-only")}>
         {listening ? t("dictate.listening") : message ? t(message) : ""}

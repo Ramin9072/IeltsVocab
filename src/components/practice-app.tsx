@@ -7,17 +7,22 @@ import { apiFetch } from "@/lib/client-api";
 import { PRACTICE_MODES, type PracticeMode } from "@/lib/schemas";
 import type { MsgKey } from "@/lib/i18n";
 import { useI18n } from "./i18n";
-import { DictateButton } from "./dictate-button";
+import { DictateButton, useRecognitionSupport } from "./dictate-button";
+import { scoreSpeech } from "@/lib/speech-score";
 import { SpeakButton } from "./speak-button";
-import { Alert, Button, Card, EmptyState, Field, Input, LinkButton, ProgressBar, ReviewLadder, Select, Spinner, cn } from "./ui";
+import { Alert, Button, Card, EmptyState, Field, Input, LinkButton, ProgressBar, ReviewLadder, Select, Spinner, Textarea, cn } from "./ui";
 
-type Kind = "en-fa" | "fa-en" | "def-en" | "type";
-interface Question { id: string; vocabId: string; kind: Kind; prompt: string; options?: string[] }
-interface Result { correct: boolean; correctAnswer: string; level: number; nextReviewAt: number; practiceCount: number }
+type Kind = "en-fa" | "fa-en" | "def-en" | "type" | "speak";
+interface Question { id: string; vocabId: string; kind: Kind; prompt: string; options?: string[]; local?: boolean }
+interface Result {
+  correct: boolean; correctAnswer: string; level?: number; nextReviewAt?: number; practiceCount?: number;
+  score?: number; words?: { word: string; ok: boolean }[]; heard?: string; // pronunciation check
+}
+const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `local-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 interface LogItem { q: Question; answer: string; result: Result }
 type Source = "all" | "collection" | "selected";
 
-const promptDir = (k: Kind) => (k === "en-fa" || k === "def-en" ? "ltr" : k === "fa-en" ? "rtl" : "auto");
+const promptDir = (k: Kind) => (k === "en-fa" || k === "def-en" || k === "speak" ? "ltr" : k === "fa-en" ? "rtl" : "auto");
 const optionDir = (k: Kind) => (k === "en-fa" ? "rtl" : "ltr");
 
 export function PracticeApp({ collections, totalWords }: { collections: { id: string; name: string; count: number }[]; totalWords: number }) {
@@ -30,6 +35,9 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
   const [wordFilter, setWordFilter] = useState<"any" | "new" | "practiced">("any");
   const [setupError, setSetupError] = useState<string | null>(null);
 
+  const speechOk = useRecognitionSupport();
+  const [heard, setHeard] = useState<string | null>(null);
+  const [own, setOwn] = useState("");
   const [picked, setPicked] = useState<Map<string, string>>(new Map());
   const [pickQuery, setPickQuery] = useState("");
   const [pickResults, setPickResults] = useState<{ id: string; english: string }[]>([]);
@@ -77,7 +85,7 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
           ids: source === "selected" ? [...picked.keys()] : undefined,
         },
       });
-      setQuestions(res.questions); setSkipped(res.skipped); setIdx(0); setLog([]); setResult(null); setSelected(null); setTyped(""); setAnswerError(null);
+      setQuestions(res.questions); setSkipped(res.skipped); setIdx(0); setLog([]); setResult(null); setSelected(null); setTyped(""); setHeard(null); setAnswerError(null);
       setPhase("run");
     } catch (e) {
       setSetupError(err(e));
@@ -85,9 +93,25 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
     }
   }
 
+  function startOwn() {
+    const text = own.trim();
+    if (!text) return;
+    // A sentence you typed yourself is scored in the browser and is not saved or counted.
+    setQuestions([{ id: newId(), vocabId: "", kind: "speak", prompt: text, local: true }]);
+    setSkipped(0); setIdx(0); setLog([]); setResult(null); setSelected(null); setTyped(""); setHeard(null); setAnswerError(null);
+    setPhase("run");
+  }
+
   async function submit(answer: string) {
     const q = questions[idx];
     if (submitting || result) return;
+    if (q.local) {
+      const s = scoreSpeech(q.prompt, answer);
+      const r: Result = { correct: s.correct, correctAnswer: q.prompt, score: Math.round(s.score * 100), words: s.words, heard: answer };
+      setResult(r);
+      setLog((l) => [...l, { q, answer, result: r }]);
+      return;
+    }
     setSubmitting(true);
     setAnswerError(null);
     try {
@@ -104,7 +128,7 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
 
   function advance() {
     if (idx + 1 >= questions.length) { setPhase("done"); return; }
-    setIdx(idx + 1); setResult(null); setSelected(null); setTyped(""); setAnswerError(null);
+    setIdx(idx + 1); setResult(null); setSelected(null); setTyped(""); setHeard(null); setAnswerError(null);
   }
 
   if (phase === "loading") return <p className="py-16 text-center"><Spinner label={t("practice.starting")} /></p>;
@@ -125,12 +149,28 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
           <div>
             <p className="text-sm text-muted">{t(`practice.q.${q.kind}` as MsgKey)}</p>
             <div className="mt-2 flex items-center gap-3">
-              <p className="font-display text-3xl font-bold sm:text-4xl" dir={promptDir(q.kind)} lang={q.kind === "fa-en" ? "fa" : undefined}>{q.prompt}</p>
+              <p className={cn("font-display font-bold", q.kind === "speak" ? "text-2xl" : "text-3xl sm:text-4xl")} dir={promptDir(q.kind)} lang={q.kind === "fa-en" ? "fa" : undefined}>{q.prompt}</p>
               {q.kind === "en-fa" && <SpeakButton text={q.prompt} />}
             </div>
           </div>
 
-          {q.options ? (
+          {q.kind === "speak" ? (
+            <div className="space-y-3">
+              <SpeakButton text={q.prompt} variant="full" />
+              {!result && (heard === null ? (
+                <div className="flex flex-wrap items-center gap-2"><DictateButton lang="en" variant="wide" onText={setHeard} /></div>
+              ) : (
+                <div className="space-y-3 rounded-lg border border-line bg-sunken/50 p-3">
+                  <p className="text-sm text-muted">{t("speaking.heard")}</p>
+                  <p dir="ltr" lang="en" className="text-lg">{heard}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => void submit(heard)} disabled={submitting}>{t("speaking.check")}</Button>
+                    <Button variant="secondary" onClick={() => setHeard(null)} disabled={submitting}>{t("speaking.retry")}</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : q.options ? (
             <ul className="grid gap-2.5" aria-label={t(`practice.q.${q.kind}` as MsgKey)}>
               {q.options.map((o) => {
                 const isCorrect = result && o === result.correctAnswer;
@@ -181,14 +221,40 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
                 {result.correct ? <CheckCircle2 className="size-5 text-ok" aria-hidden /> : <XCircle className="size-5 text-bad" aria-hidden />}
                 {result.correct ? t("practice.correct") : t("practice.wrong")}
               </p>
-              {!result.correct && (
+              {!result.correct && q.kind !== "speak" && (
                 <p>{t("practice.answerIs")}: <strong dir={q.kind === "en-fa" ? "rtl" : "ltr"} lang={q.kind === "en-fa" ? "fa" : "en"} className="inline-block">{result.correctAnswer}</strong></p>
               )}
               {q.kind !== "en-fa" && <SpeakButton text={result.correctAnswer} />}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <ReviewLadder level={result.level} label={`${t("detail.level")}: ${n(result.level)} / ${n(6)}`} />
-                <p className="text-sm text-muted">{t("practice.nextReview", { when: when(result.nextReviewAt) })}</p>
-              </div>
+              {q.kind === "speak" && result.words && (
+                <div className="space-y-3">
+                  <p className="font-medium">{t("speaking.score", { n: n(result.score ?? 0) })}</p>
+                  <ul className="flex flex-wrap gap-1.5" dir="ltr" lang="en">
+                    {result.words.map((w, i) => (
+                      <li key={i} className={cn("rounded-md px-2 py-0.5 text-base", w.ok ? "bg-ok/15 text-ok" : "bg-bad/15 text-bad underline decoration-wavy")}>
+                        {w.word}<span className="sr-only"> {w.ok ? t("practice.correct") : t("practice.wrong")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {result.heard && <p className="text-sm text-muted">{t("speaking.heard")}: <span dir="ltr" lang="en">{result.heard}</span></p>}
+                  {result.words.some((w) => !w.ok) ? (
+                    <div>
+                      <p className="mb-1 text-sm font-medium">{t("speaking.workOn")}</p>
+                      <ul className="flex flex-wrap gap-2">
+                        {[...new Set(result.words.filter((w) => !w.ok).map((w) => w.word))].map((w) => (
+                          <li key={w} className="flex items-center gap-1" dir="ltr"><span lang="en">{w}</span><SpeakButton text={w} /></li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : <p className="text-sm text-ok">{t("speaking.allGood")}</p>}
+                  <p className="text-sm text-muted">{t("speaking.note")}</p>
+                </div>
+              )}
+              {result.level !== undefined && result.nextReviewAt !== undefined && (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <ReviewLadder level={result.level} label={`${t("detail.level")}: ${n(result.level)} / ${n(6)}`} />
+                  <p className="text-sm text-muted">{t("practice.nextReview", { when: when(result.nextReviewAt) })}</p>
+                </div>
+              )}
               <Button ref={nextRef} onClick={advance}>{idx + 1 >= questions.length ? t("practice.finish") : t("practice.next")}</Button>
             </div>
           )}
@@ -207,6 +273,7 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
           <p className="mt-2 font-display text-5xl font-bold">{t("practice.score", { c: n(right), t: n(log.length) })}</p>
           {log.length > 0 && <p className="mt-1 text-muted">{n(Math.round((right / log.length) * 100))}%</p>}
           {skipped > 0 && <Alert className="mt-4 text-start">{t("practice.skipped", { n: n(skipped) })}</Alert>}
+          {log.some((l) => l.q.local) && <Alert className="mt-4 text-start">{t("speaking.ownNote")}</Alert>}
         </Card>
         <Card>
           <h3 className="mb-2 font-semibold">{t("practice.reviewMistakes")}</h3>
@@ -237,12 +304,22 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
         <div className="grid gap-2 sm:grid-cols-2">
           {PRACTICE_MODES.map((m) => (
             <label key={m} className={cn("flex cursor-pointer gap-3 rounded-card border p-3 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-primary", mode === m ? "border-primary bg-primary/10" : "border-line bg-surface hover:bg-sunken")}>
-              <input type="radio" name="mode" value={m} checked={mode === m} onChange={() => setMode(m)} className="mt-1.5 accent-[rgb(var(--primary))]" />
-              <span><span className="block font-medium">{t(`practice.mode.${m}` as MsgKey)}</span><span className="block text-sm text-muted">{t(`practice.desc.${m}` as MsgKey)}</span></span>
+              <input type="radio" name="mode" value={m} checked={mode === m} disabled={m === "speaking" && speechOk === false} onChange={() => setMode(m)} className="mt-1.5 accent-[rgb(var(--primary))]" />
+              <span><span className="block font-medium">{t(`practice.mode.${m}` as MsgKey)}</span><span className="block text-sm text-muted">{t(`practice.desc.${m}` as MsgKey)}</span>{m === "speaking" && speechOk === false && <span className="block text-sm text-bad">{t("speaking.unsupported")}</span>}</span>
             </label>
           ))}
         </div>
       </fieldset>
+
+      {mode === "speaking" && speechOk && (
+        <Card className="space-y-3 bg-sunken/50">
+          <Field id="own-sentence" label={t("speaking.own")}>
+            <Textarea id="own-sentence" dir="ltr" lang="en" value={own} onChange={(e) => setOwn(e.target.value)} maxLength={300} rows={2} placeholder={t("speaking.ownPlaceholder")} />
+          </Field>
+          <Button variant="secondary" onClick={startOwn} disabled={!own.trim()}>{t("speaking.ownStart")}</Button>
+          <p className="text-sm text-muted">{t("speaking.ownNote")}</p>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field id="count" label={t("practice.count")}>

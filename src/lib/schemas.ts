@@ -55,7 +55,7 @@ export const listQuerySchema = z.object({
 });
 export type ListQuery = z.infer<typeof listQuerySchema>;
 
-export const PRACTICE_MODES = ["en-fa", "fa-en", "definition", "multiple-choice", "typing", "difficult"] as const;
+export const PRACTICE_MODES = ["en-fa", "fa-en", "definition", "multiple-choice", "typing", "difficult", "speaking"] as const;
 export type PracticeMode = (typeof PRACTICE_MODES)[number];
 
 export const sessionSchema = z.object({
@@ -69,7 +69,7 @@ export const sessionSchema = z.object({
 export const answerSchema = z.object({
   requestId: uuid,
   vocabId: uuid,
-  kind: z.enum(["en-fa", "fa-en", "def-en", "type"]),
+  kind: z.enum(["en-fa", "fa-en", "def-en", "type", "speak"]),
   answer: z.string().max(500),
 });
 
