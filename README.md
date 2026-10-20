@@ -14,6 +14,8 @@ Fonts (Vazirmatn, Bricolage Grotesque) are bundled through `@fontsource-variable
 - Collections: create, rename, delete safely (words are kept and moved to "No collection"), assign from the word form.
 - Practice: English→Persian, Persian→English, definitions, mixed multiple choice, typing, difficult-word review. Choose question count, collection or hand-picked words, new vs. practiced words. One question at a time, instant feedback, correct answer, progress bar, session summary.
 - Exact practice counting, idempotent answers, spaced repetition, dashboard and progress statistics from real stored data.
+- Pronunciation: listen to any English word (word details, library, practice), slowly, or repeated 3 times for shadowing. Uses the device's built-in voices (Web Speech API), so there is no server, key or cost.
+- Voice typing: a microphone button next to the English field, the Persian field and the typing-practice answer. Press it, speak, and the text is typed for you (you still press Save / Check yourself).
 - CSV import (with per-row validation report, nothing silently dropped) and export.
 - Optional translation / definition / enrichment assistant (Gemini or any OpenAI-compatible API). Suggestions are shown for review and are **never saved automatically**.
 - Light / dark / system theme, English / Persian UI, keyboard-accessible, visible focus, reduced-motion friendly.
@@ -157,7 +159,7 @@ tests/                        Vitest suites (run against a real redis-server)
 
 ## Verification status
 
-Run in the build environment: `eslint` clean · `tsc --noEmit` clean · **103 Vitest tests passing** · `next build` succeeds without any credentials · `npm audit --omit=dev`: 0 vulnerabilities. Tests cover vocabulary create/edit/delete and index cleanup, user isolation, protected pages and API routes, counters (correct/incorrect, retries, concurrent double-submits), review scheduling, session building, statistics, CSV import/export, translation errors/caching/rate limits, and empty states.
+Run in the build environment: `eslint` clean · `tsc --noEmit` clean · **108 Vitest tests passing** · `next build` succeeds without any credentials · `npm audit --omit=dev`: 0 vulnerabilities. Tests cover vocabulary create/edit/delete and index cleanup, user isolation, protected pages and API routes, counters (correct/incorrect, retries, concurrent double-submits), review scheduling, session building, statistics, CSV import/export, translation errors/caching/rate limits, and empty states.
 
 An HTTP smoke test also ran against the production server through the real `@upstash/redis` SDK (talking to a local Redis via `scripts/local-upstash-proxy.mjs`): login, wrong password, redirect of unauthenticated pages, cross-user `404`s, duplicate `409`, idempotent practice answers, Persian `dir="rtl"`, CSV export, cross-site write block, unconfigured translation message.
 
@@ -166,6 +168,8 @@ An HTTP smoke test also ran against the production server through the real `@ups
 - **Not yet run on real Upstash or Vercel.** The data layer was tested against Redis 7.0.15; the Lua scripts access keys that are not listed in `KEYS` (fine on standalone Redis, expected to be fine on Upstash). Please do the smoke test in "Deploy to Vercel" step 5 on your first deployment.
 - **Translation providers were tested with mocked HTTP only**, not against live Gemini/OpenAI/Groq. Default model names may need updating via `TRANSLATION_MODEL`.
 - **No browser/visual testing and no automated accessibility audit** was possible here; the UI was built for keyboard use, contrast and RTL but should be checked on real devices.
+- Pronunciation audio comes from the browser's own English voices, so quality varies by device, it needs a browser with speech support (Chrome, Safari, Edge) and it was not tried on real devices here. The IPA text you save is shown but not used to generate sound.
+- Voice typing uses the browser's SpeechRecognition (Chrome, Edge, Safari; hidden in Firefox). In Chrome the audio is processed by Google's speech service, so it needs internet and the browser asks for microphone permission. Accuracy for Persian and for rare English words varies; always check the text before saving. Not tried on real devices here.
 - No password reset, email verification, or account deletion (there is no email service). Registration reveals whether an email is already registered.
 - Search is word-prefix based over English, Persian and tags (not substring or fuzzy, and it does not search definitions or notes). A-Z order uses the first 10 characters. There is no "learning" review-status filter (the badge is shown on each word).
 - CSV import accepts up to 300 rows and 1 MB per upload.

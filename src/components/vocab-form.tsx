@@ -7,6 +7,7 @@ import { Sparkles } from "lucide-react";
 import { ApiError, apiFetch } from "@/lib/client-api";
 import { PARTS_OF_SPEECH, type VocabView } from "@/lib/types";
 import type { MsgKey } from "@/lib/i18n";
+import { DictateButton } from "./dictate-button";
 import { useI18n } from "./i18n";
 import { Alert, Badge, Button, Card, Field, Input, Select, Spinner, Textarea } from "./ui";
 
@@ -144,7 +145,10 @@ export function VocabForm({
       )}
 
       <Field id="english" label={t("vocab.english")} error={fieldErr ?? undefined}>
-        <Input ref={englishRef} id="english" dir="ltr" lang="en" value={f.english} onChange={set("english")} maxLength={500} required aria-invalid={Boolean(fieldErr)} aria-describedby={fieldErr ? "english-err" : undefined} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Input ref={englishRef} id="english" dir="ltr" lang="en" className="min-w-0 flex-1" value={f.english} onChange={set("english")} maxLength={500} required aria-invalid={Boolean(fieldErr)} aria-describedby={fieldErr ? "english-err" : undefined} />
+          <DictateButton lang="en" onText={(text) => setF((p) => ({ ...p, english: text }))} />
+        </div>
       </Field>
 
       <Card className="space-y-3 bg-sunken/50">
@@ -184,7 +188,10 @@ export function VocabForm({
       </Card>
 
       <Field id="persian" label={t("vocab.persian")} optional={t("common.optional")}>
-        <Input id="persian" dir="rtl" lang="fa" value={f.persian} onChange={set("persian")} maxLength={500} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Input id="persian" dir="rtl" lang="fa" className="min-w-0 flex-1" value={f.persian} onChange={set("persian")} maxLength={500} />
+          <DictateButton lang="fa" onText={(text) => setF((p) => ({ ...p, persian: text }))} />
+        </div>
       </Field>
       <Field id="definition" label={t("vocab.definition")} optional={t("common.optional")}>
         <Textarea id="definition" dir="ltr" lang="en" value={f.definition} onChange={set("definition")} maxLength={1000} rows={2} />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
+import { SpeakButton } from "@/components/speak-button";
 import { DeleteWordButton } from "@/components/delete-word-button";
 import { StatusBadge } from "@/components/word-row";
 import { Badge, Card, En, Fa, LinkButton, ReviewLadder } from "@/components/ui";
@@ -56,6 +57,13 @@ export default async function VocabDetailPage({ params }: { params: Promise<{ id
           <DeleteWordButton id={v.id} english={v.english} redirectTo="/library" />
         </div>
       </div>
+
+      <Card className="mb-5">
+        <h2 className="text-lg font-semibold">{t("speak.title")}</h2>
+        {v.pronunciation && <p className="mt-1 text-xl" dir="ltr" lang="en">{v.pronunciation}</p>}
+        <p className="mb-3 mt-1 text-sm text-muted">{t("speak.hint")}</p>
+        <SpeakButton text={v.english} variant="full" />
+      </Card>
 
       <Card className="mb-5">
         <dl className="divide-y divide-line">

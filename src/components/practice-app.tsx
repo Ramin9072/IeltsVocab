@@ -7,6 +7,8 @@ import { apiFetch } from "@/lib/client-api";
 import { PRACTICE_MODES, type PracticeMode } from "@/lib/schemas";
 import type { MsgKey } from "@/lib/i18n";
 import { useI18n } from "./i18n";
+import { DictateButton } from "./dictate-button";
+import { SpeakButton } from "./speak-button";
 import { Alert, Button, Card, EmptyState, Field, Input, LinkButton, ProgressBar, ReviewLadder, Select, Spinner, cn } from "./ui";
 
 type Kind = "en-fa" | "fa-en" | "def-en" | "type";
@@ -122,7 +124,10 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
         <Card className="space-y-5 p-5 sm:p-7">
           <div>
             <p className="text-sm text-muted">{t(`practice.q.${q.kind}` as MsgKey)}</p>
-            <p className="mt-2 font-display text-3xl font-bold sm:text-4xl" dir={promptDir(q.kind)} lang={q.kind === "fa-en" ? "fa" : undefined}>{q.prompt}</p>
+            <div className="mt-2 flex items-center gap-3">
+              <p className="font-display text-3xl font-bold sm:text-4xl" dir={promptDir(q.kind)} lang={q.kind === "fa-en" ? "fa" : undefined}>{q.prompt}</p>
+              {q.kind === "en-fa" && <SpeakButton text={q.prompt} />}
+            </div>
           </div>
 
           {q.options ? (
@@ -158,7 +163,10 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
           ) : (
             <form onSubmit={(e) => { e.preventDefault(); if (typed.trim()) void submit(typed); }} className="space-y-3">
               <Field id="typed" label={t("practice.typeHere")}>
-                <Input ref={typeRef} id="typed" dir="ltr" lang="en" value={typed} onChange={(e) => setTyped(e.target.value)} disabled={submitting || result !== null} autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={500} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input ref={typeRef} id="typed" dir="ltr" lang="en" className="min-w-0 flex-1" value={typed} onChange={(e) => setTyped(e.target.value)} disabled={submitting || result !== null} autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={500} />
+                  {!result && <DictateButton lang="en" onText={setTyped} />}
+                </div>
               </Field>
               {!result && <Button type="submit" disabled={submitting || !typed.trim()}>{submitting ? t("practice.submitting") : t("practice.check")}</Button>}
             </form>
@@ -176,6 +184,7 @@ export function PracticeApp({ collections, totalWords }: { collections: { id: st
               {!result.correct && (
                 <p>{t("practice.answerIs")}: <strong dir={q.kind === "en-fa" ? "rtl" : "ltr"} lang={q.kind === "en-fa" ? "fa" : "en"} className="inline-block">{result.correctAnswer}</strong></p>
               )}
+              {q.kind !== "en-fa" && <SpeakButton text={result.correctAnswer} />}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <ReviewLadder level={result.level} label={`${t("detail.level")}: ${n(result.level)} / ${n(6)}`} />
                 <p className="text-sm text-muted">{t("practice.nextReview", { when: when(result.nextReviewAt) })}</p>

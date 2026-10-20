@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Pencil, Search } from "lucide-react";
+import { SpeakButton } from "@/components/speak-button";
 import { DeleteWordButton } from "@/components/delete-word-button";
 import { StatusBadge } from "@/components/word-row";
 import { Badge, Button, Card, EmptyState, En, Fa, Field, Input, LinkButton, PageHeader, Select } from "@/components/ui";
@@ -99,7 +100,10 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
             <li key={v.id}>
               <Card className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 grow basis-60">
-                  <Link href={`/vocab/${v.id}`} className="font-display text-xl font-semibold text-ink no-underline hover:text-primary"><En>{v.english}</En></Link>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/vocab/${v.id}`} className="font-display text-xl font-semibold text-ink no-underline hover:text-primary"><En>{v.english}</En></Link>
+                    <SpeakButton text={v.english} />
+                  </div>
                   {v.persian && <p className="mt-0.5 text-primary"><Fa>{v.persian}</Fa></p>}
                   {v.definition && <p className="mt-1 line-clamp-2 text-sm text-muted" dir="ltr" lang="en">{v.definition}</p>}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
