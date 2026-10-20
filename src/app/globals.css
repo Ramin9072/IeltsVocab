@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 244 246 248;
+  --surface: 255 255 255;
+  --sunken: 234 238 242;
+  --ink: 23 32 51;
+  --muted: 88 100 120;
+  --line: 215 221 229;
+  --primary: 14 124 134;
+  --primary-ink: 255 255 255;
+  --saffron: 232 163 23;
+  --ok: 24 128 80;
+  --bad: 192 57 43;
+  --font-body: "Vazirmatn Variable", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Vazirmatn Variable", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: 14 21 31;
+  --surface: 22 32 45;
+  --sunken: 30 42 58;
+  --ink: 230 237 243;
+  --muted: 156 170 188;
+  --line: 45 59 78;
+  --primary: 60 193 204;
+  --primary-ink: 8 24 32;
+  --saffron: 242 183 62;
+  --ok: 74 200 130;
+  --bad: 242 125 112;
+  color-scheme: dark;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-bg font-sans text-ink antialiased; line-height: 1.6; }
+  h1, h2, h3 { font-family: var(--font-display); line-height: 1.25; }
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid rgb(var(--primary));
+    outline-offset: 2px;
+  }
+  a { @apply text-primary; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
